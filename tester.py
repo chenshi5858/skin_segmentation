@@ -4,21 +4,20 @@ from PIL import Image
 import torch.nn as nn
 
 class SimpleModel(nn.Module):
-    def __init__(self, input_size, n_classes):
+    def __init__(self, input_size, n_classes=2):
         super(SimpleModel, self).__init__()
         self.fc1 = nn.Linear(input_size, 8)
         self.fc2 = nn.Linear(8, 16)
-        self.fc3 = nn.Linear(16, n_classes)  
+        self.fc3 = nn.Linear(16, n_classes)
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
-        x = self.fc3(x) 
+        x = self.fc3(x)  
         return x
 
-model = SimpleModel(3, 1)
+model = SimpleModel(3, 2)
 model.load_state_dict(torch.load("skin_segmentation.pth"))
 model.eval()
 
@@ -29,14 +28,18 @@ def preprocess_image(image_path):
 
 def classify_image(image_array):
     height, width, _ = image_array.shape
-    pixels = image_array.reshape(-1, 3)  
-    pixel_tensors = torch.tensor(pixels, dtype=torch.float32)  
-    output = model(pixel_tensors).detach().numpy() 
-    output = output.reshape(height, width) 
-    output = (output > 0.5) * 255  
-    return output.astype(np.uint8)
+    pixels = image_array.reshape(-1, 3)
+    pixel_tensors = torch.tensor(pixels, dtype=torch.float32)
+    
+    with torch.no_grad():
+        outputs = model(pixel_tensors)
+        probs = torch.softmax(outputs, dim=1)
+        preds = torch.argmax(probs, dim=1) 
 
-image_path = "dataset_with_mask\\59_peopledrivingcar_peopledrivingcar_59_74.jpg"  
+    output = preds.reshape(height, width) * 255 
+    return output.numpy().astype(np.uint8)
+
+image_path = "dataset_with_mask\\1_Handshaking_Handshaking_1_245.jpg"  
 image_array = preprocess_image(image_path)
 classified_image = classify_image(image_array)
 

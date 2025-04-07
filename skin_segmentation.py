@@ -10,14 +10,14 @@ class SkinDataset(Dataset):
     def __init__(self, file_path):
         data_array = np.load(file_path)
         self.X = data_array[:, :3] / 255.0  
-        self.y = data_array[:, 3].reshape(-1, 1)  
+        self.y = data_array[:, 3].astype(int) 
     
     def __len__(self):
         return len(self.X)
     
     def __getitem__(self, idx):
         sample = torch.tensor(self.X[idx], dtype=torch.float32)
-        label = torch.tensor(self.y[idx], dtype=torch.float32)
+        label = torch.tensor(self.y[idx], dtype=torch.long)  
         return sample, label
 
 dataset = SkinDataset("skin_nskin.npy")
@@ -41,13 +41,12 @@ train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
 
 class SimpleModel(nn.Module):
-    def __init__(self, input_size, n_classes):
+    def __init__(self, input_size, n_classes=2): 
         super(SimpleModel, self).__init__()
         self.fc1 = nn.Linear(input_size, 8)
         self.fc2 = nn.Linear(8, 16)
-        self.fc3 = nn.Linear(16, n_classes)  
+        self.fc3 = nn.Linear(16, n_classes)
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.relu(self.fc1(x))
@@ -56,9 +55,9 @@ class SimpleModel(nn.Module):
         return x
 
 device = "cpu"
-model = SimpleModel(3, 1).to(device)
+model = SimpleModel(3, 2).to(device)
 
-loss_fn = nn.BCELoss()
+loss_fn = nn.CrossEntropyLoss()
 optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 
 epochs = 10
@@ -79,8 +78,8 @@ for epoch in range(epochs):
         inputs, labels = inputs.to(device), labels.to(device)
 
         optimizer.zero_grad()
-        outputs = torch.sigmoid(model(inputs))  
-        loss = loss_fn(outputs, labels)
+        outputs = model(inputs)  
+        loss = loss_fn(outputs, labels)  
         loss.backward()
         optimizer.step()
 
@@ -94,18 +93,19 @@ for epoch in range(epochs):
     with torch.no_grad():
         for inputs, labels in val_loader:
             inputs, labels = inputs.to(device), labels.to(device)
-            outputs = torch.sigmoid(model(inputs)) 
+            outputs = model(inputs)
             val_loss += loss_fn(outputs, labels).item()
-            preds = (outputs >= 0.5).float()
+            preds = torch.argmax(outputs, dim=1)  
             acc += (preds == labels).sum().item()
 
             all_labels.extend(labels.cpu().numpy())
-            all_preds.extend(outputs.cpu().numpy())
+            all_preds.extend(preds.cpu().numpy())
 
     val_losses.append(val_loss / len(val_loader))
     accuracy = acc / len(val_set)
 
     print(f"Epoch {epoch+1}, Train Loss: {train_losses[-1]:.4f}, Val Loss: {val_losses[-1]:.4f}, Val Acc: {accuracy:.4f}")
+
 
 torch.save(model.state_dict(), "skin_segmentation.pth")
 
