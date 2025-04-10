@@ -39,7 +39,7 @@ def classify_image(image_array):
     output = preds.reshape(height, width) * 255 
     return output.numpy().astype(np.uint8)
 
-image_path = "dataset_with_mask\\1_Handshaking_Handshaking_1_245.jpg"  
+image_path = "dataset_with_mask\\59_peopledrivingcar_peopledrivingcar_59_74.jpg"  
 image_array = preprocess_image(image_path)
 classified_image = classify_image(image_array)
 

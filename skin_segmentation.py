@@ -27,9 +27,15 @@ class_weights = [0, 0]
 for label in dataset.y:
     class_weights[int(label)] += 1
 total_samples = len(dataset)
-class_weights = [total_samples / weight for weight in class_weights]
+new_weights = []
+for weight in class_weights:
+    new_weights.append(total_samples / weight)
+class_weights = new_weights
 
-weights = [class_weights[int(label)] for label in dataset.y]
+weights = []
+for label in dataset.y:
+    index = int(label)
+    weights.append(class_weights[index])
 sampler = WeightedRandomSampler(weights, len(weights), replacement=True)
 
 train_size = int(0.8* len(dataset))
