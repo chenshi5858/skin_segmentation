@@ -26,19 +26,32 @@ train_size = int(0.8 * len(dataset))
 val_size = len(dataset) - train_size
 train_set, val_set = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(0))
 
-train_labels = [train_set[i][1].item() for i in range(len(train_set))]
+train_labels = []
+for i in range(len(train_set)):
+    label = train_set[i][1].item()
+    train_labels.append(label)
 
-class_counts = [train_labels.count(0.0), train_labels.count(1.0)]
-class_weights = [len(train_set) / c for c in class_counts]
+count_0 = train_labels.count(0.0)
+count_1 = train_labels.count(1.0)
+class_counts = [count_0, count_1]
+
+class_weights = []
+for count in class_counts:
+    weight = len(train_set) / count
+    class_weights.append(weight)
+
 class_weights[1] *= 2
-sample_weights = [class_weights[int(label)] for label in train_labels]
+
+sample_weights = []
+for label in train_labels:
+    weight = class_weights[int(label)]
+    sample_weights.append(weight)
 
 sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
 
 batch_size = 32
 train_loader = DataLoader(train_set, batch_size=batch_size, sampler=sampler)
 val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
-
 
 class SimpleModel(nn.Module):
     def __init__(self, input_size, n_classes):
