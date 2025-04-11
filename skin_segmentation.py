@@ -34,9 +34,9 @@ val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
 class SimpleModel(nn.Module):
     def __init__(self, input_size, n_classes):
         super(SimpleModel, self).__init__()
-        self.fc1 = nn.Linear(input_size, 4)  
-        self.fc2 = nn.Linear(4, 8)  
-        self.fc3 = nn.Linear(8, n_classes)  
+        self.fc1 = nn.Linear(input_size, 8)
+        self.fc2 = nn.Linear(8, 16)
+        self.fc3 = nn.Linear(16, n_classes)  
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
@@ -50,7 +50,7 @@ device = "cpu"
 model = SimpleModel(3, 1).to(device)
 
 loss_fn = nn.BCELoss()
-optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 epochs = 10
 train_losses = []
