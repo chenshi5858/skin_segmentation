@@ -8,14 +8,13 @@ class SimpleModel(nn.Module):
         super(SimpleModel, self).__init__()
         self.fc1 = nn.Linear(input_size, 8)
         self.fc2 = nn.Linear(8, 16)
-        self.fc3 = nn.Linear(16, n_classes)  
+        self.fc3 = nn.Linear(16, n_classes)
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
-
+    
     def forward(self, x):
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
-        x = self.fc3(x) 
+        x = self.fc3(x)
         return x
 
 model = SimpleModel(3, 1)
@@ -28,19 +27,15 @@ def preprocess_image(image_path):
     return image
 
 def classify_image(image_array):
-    height, width, _ = image_array.shape
-    pixels = image_array.reshape(-1, 3)
-    pixel_tensors = torch.tensor(pixels, dtype=torch.float32)
-    
-    with torch.no_grad():
-        outputs = model(pixel_tensors)
-        probs = torch.softmax(outputs, dim=1)
-        preds = torch.argmax(probs, dim=1) 
+     height, width, _ = image_array.shape
+     pixels = image_array.reshape(-1, 3)  
+     pixel_tensors = torch.tensor(pixels, dtype=torch.float32)  
+     output = model(pixel_tensors).detach().numpy() 
+     output = output.reshape(height, width) 
+     output = (output > 0.5) * 255  
+     return output.astype(np.uint8)
 
-    output = preds.reshape(height, width) * 255 
-    return output.numpy().astype(np.uint8)
-
-image_path = "dataset_with_mask\\54_Rescue_firemanrescue_54_243.jpg"  
+image_path = "dataset_with_mask\\59_peopledrivingcar_peopledrivingcar_59_74.jpg"  
 image_array = preprocess_image(image_path)
 classified_image = classify_image(image_array)
 
