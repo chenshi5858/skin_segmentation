@@ -10,49 +10,46 @@ class SkinDataset(Dataset):
     def __init__(self, file_path):
         data_array = np.load(file_path)
         self.X = data_array[:, :3] / 255.0  
-        self.y = data_array[:, 3].astype(int) 
+        self.y = data_array[:, 3].reshape(-1, 1)  
     
     def __len__(self):
         return len(self.X)
     
     def __getitem__(self, idx):
         sample = torch.tensor(self.X[idx], dtype=torch.float32)
-        label = torch.tensor(self.y[idx], dtype=torch.long)  
+        label = torch.tensor(self.y[idx], dtype=torch.float32)
         return sample, label
 
 dataset = SkinDataset("skin_nskin.npy")
 data_array = np.load("skin_nskin.npy")
 
-class_weights = [0, 0]
-for label in dataset.y:
-    class_weights[int(label)] += 1
-total_samples = len(dataset)
-new_weights = []
-for weight in class_weights:
-    new_weights.append(total_samples / weight)
-class_weights = new_weights
-
-weights = []
-for label in dataset.y:
-    index = int(label)
-    weights.append(class_weights[index])
-sampler = WeightedRandomSampler(weights, len(weights), replacement=True)
-
-train_size = int(0.8* len(dataset))
+train_size = int(0.8 * len(dataset))
 val_size = len(dataset) - train_size
 train_set, val_set = random_split(dataset, [train_size, val_size], generator=torch.Generator().manual_seed(0))
 
-batch_size = 32  
-train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+train_labels = [dataset.y[i] for i in train_set.indices]  
+
+class_counts = [0, 0]
+for label in train_labels:
+    class_counts[int(label)] += 1
+class_weights = [len(train_labels) / c for c in class_counts]
+
+sample_weights = [class_weights[int(label)] for label in train_labels]
+
+sampler = WeightedRandomSampler(sample_weights, len(sample_weights), replacement=True)
+
+batch_size = 32
+train_loader = DataLoader(train_set, batch_size=batch_size, sampler=sampler)
 val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
 
 class SimpleModel(nn.Module):
-    def __init__(self, input_size, n_classes=2): 
+    def __init__(self, input_size, n_classes):
         super(SimpleModel, self).__init__()
         self.fc1 = nn.Linear(input_size, 8)
         self.fc2 = nn.Linear(8, 16)
-        self.fc3 = nn.Linear(16, n_classes)
+        self.fc3 = nn.Linear(16, n_classes)  
         self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
         x = self.relu(self.fc1(x))
@@ -61,9 +58,9 @@ class SimpleModel(nn.Module):
         return x
 
 device = "cpu"
-model = SimpleModel(3, 2).to(device)
+model = SimpleModel(3, 1).to(device)
 
-loss_fn = nn.CrossEntropyLoss()
+loss_fn = nn.BCELoss()
 optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9)
 
 epochs = 10
@@ -84,8 +81,8 @@ for epoch in range(epochs):
         inputs, labels = inputs.to(device), labels.to(device)
 
         optimizer.zero_grad()
-        outputs = model(inputs)  
-        loss = loss_fn(outputs, labels)  
+        outputs = torch.sigmoid(model(inputs))  
+        loss = loss_fn(outputs, labels)
         loss.backward()
         optimizer.step()
 
@@ -99,13 +96,13 @@ for epoch in range(epochs):
     with torch.no_grad():
         for inputs, labels in val_loader:
             inputs, labels = inputs.to(device), labels.to(device)
-            outputs = model(inputs)
+            outputs = torch.sigmoid(model(inputs)) 
             val_loss += loss_fn(outputs, labels).item()
-            preds = torch.argmax(outputs, dim=1)  
+            preds = (outputs >= 0.5).float()
             acc += (preds == labels).sum().item()
 
             all_labels.extend(labels.cpu().numpy())
-            all_preds.extend(preds.cpu().numpy())
+            all_preds.extend(outputs.cpu().numpy())
 
     val_losses.append(val_loss / len(val_loader))
     accuracy = acc / len(val_set)
