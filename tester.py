@@ -6,15 +6,16 @@ import torch.nn as nn
 class SimpleModel(nn.Module):
     def __init__(self, input_size, n_classes):
         super(SimpleModel, self).__init__()
-        self.fc1 = nn.Linear(input_size, 8)
-        self.fc2 = nn.Linear(8, 16)
-        self.fc3 = nn.Linear(16, n_classes)
+        self.fc1 = nn.Linear(input_size, 4)  
+        self.fc2 = nn.Linear(4, 8)  
+        self.fc3 = nn.Linear(8, n_classes)  
         self.relu = nn.ReLU()
-    
+        self.sigmoid = nn.Sigmoid()
+
     def forward(self, x):
         x = self.relu(self.fc1(x))
         x = self.relu(self.fc2(x))
-        x = self.fc3(x)
+        x = self.fc3(x) 
         return x
 
 model = SimpleModel(3, 1)
@@ -35,7 +36,7 @@ def classify_image(image_array):
      output = (output > 0.5) * 255  
      return output.astype(np.uint8)
 
-image_path = "dataset_with_mask\\59_peopledrivingcar_peopledrivingcar_59_74.jpg"  
+image_path = "persona.jpeg"  
 image_array = preprocess_image(image_path)
 classified_image = classify_image(image_array)
 
